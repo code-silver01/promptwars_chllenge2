@@ -16,6 +16,7 @@ from contextlib import asynccontextmanager
 from dotenv import load_dotenv
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from slowapi import _rate_limit_exceeded_handler
@@ -23,6 +24,7 @@ from slowapi.errors import RateLimitExceeded
 
 from routes.chat import router as chat_router, limiter
 from routes.health import router as health_router
+from services.gcp_service import init_gcp
 
 # ── Load environment variables from .env (development only) ──
 load_dotenv()
@@ -46,6 +48,9 @@ async def lifespan(app: FastAPI):
     # Verify critical env vars on startup
     if not os.getenv("GEMINI_API_KEY"):
         logger.warning("⚠️  GEMINI_API_KEY is not set — AI features will fail.")
+    
+    # Initialize GCP and Firebase for enhanced functionality
+    init_gcp()
     yield
     logger.info("🗳️  Election Guide AI shutting down.")
 
@@ -81,10 +86,13 @@ app.add_middleware(
     allow_headers=["Content-Type"],
 )
 
+app.add_middleware(GZipMiddleware, minimum_size=1000)
+
+from typing import Callable
 
 # ── Security headers middleware ──────────────────────────────
 @app.middleware("http")
-async def add_security_headers(request: Request, call_next):
+async def add_security_headers(request: Request, call_next: Callable):
     """
     Inject security headers into every response:
       • X-Content-Type-Options: prevent MIME sniffing

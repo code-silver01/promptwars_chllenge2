@@ -42,7 +42,9 @@ SYSTEM_PROMPT: str = (
 _MAX_RETRIES: int = 2
 _TIMEOUT_SECONDS: float = 30.0
 
+from async_lru import alru_cache
 
+@alru_cache(maxsize=128)
 async def call_gemini(user_message: str) -> str:
     """
     Send a user query to Gemini 1.5 Flash and return the formatted response.
